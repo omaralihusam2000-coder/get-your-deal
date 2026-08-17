@@ -14,7 +14,8 @@ export function CoverImage({
   className?: string;
 }) {
   const [failed, setFailed] = useState<Record<string, true>>({});
-  const current = [src, fallback].filter((value): value is string => Boolean(value) && !failed[value])[0] ?? "";
+  const candidates = [src, fallback].filter((value): value is string => Boolean(value));
+  const current = candidates.find((value) => !failed[value]) ?? "";
 
   if (!current) {
     return <div className={`bg-white/5 ${className ?? ""}`} aria-hidden />;
