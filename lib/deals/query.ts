@@ -39,6 +39,7 @@ export function parseDealQuery(searchParams: Record<string, string | string[] | 
     pageSize: num(get("pageSize")) ?? defaults.pageSize ?? 20,
     onSale: defaults.onSale,
     currency: ["USD", "EUR", "GBP"].includes(currency) ? currency : "USD",
+    hydrate: defaults.hydrate,
   };
 }
 

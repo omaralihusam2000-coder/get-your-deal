@@ -39,8 +39,8 @@ export function SearchResultCard({ game }: { game: DealGame }) {
         </div>
         <div className="mt-4 flex flex-wrap gap-6">
           <Price label="Original" money={original} strike />
-          <Price label="Steam" money={steam?.currentPrice} />
-          <Price label="GOG" money={gog?.currentPrice} />
+          <Price label="Steam" money={steam?.verified ? steam.currentPrice : null} />
+          <Price label="GOG" money={gog?.verified ? gog.currentPrice : null} />
         </div>
         <div className="mt-3 flex flex-wrap items-center gap-3 text-sm">
           {best ? (

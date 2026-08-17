@@ -114,6 +114,7 @@ export async function fetchSteamApp(
           url: steamStoreUrl(appId),
           available: true,
           lastChange: null,
+          verified: true,
         };
       }
     } else if (data.is_free) {
@@ -128,6 +129,7 @@ export async function fetchSteamApp(
         url: steamStoreUrl(appId),
         available: true,
         lastChange: null,
+        verified: true,
       };
     }
 
@@ -158,6 +160,49 @@ export async function fetchSteamApp(
 export async function fetchSteamAppSafe(appId: string | null, currency: CurrencyCode) {
   if (!appId) return { ok: false as const, error: "missing" };
   return settled(fetchSteamApp(appId, currency));
+}
+
+export async function fetchSteamPrice(appId: string, currency: CurrencyCode): Promise<StoreOffer | null> {
+  return cached(`steam:price:${appId}:${currency}`, 5 * 60 * 1000, async () => {
+    const url = `${BASE}/appdetails?appids=${encodeURIComponent(appId)}&cc=${STEAM_CC[currency]}&filters=price_overview`;
+    const json = await fetchJson<SteamAppResponse>(url, { revalidate: 300 });
+    const data = json[appId]?.data;
+    if (!data) return null;
+    if (data.price_overview && data.price_overview.currency === currency) {
+      const current = moneyFromSteam(data.price_overview, currency);
+      const original = originalFromSteam(data.price_overview, currency);
+      if (!current || !original) return null;
+      return {
+        store: "steam",
+        storeName: "Steam",
+        dealId: null,
+        storeGameId: appId,
+        currentPrice: current,
+        originalPrice: original,
+        discountPercent: data.price_overview.discount_percent || discountPercent(current.amount, original.amount),
+        url: steamStoreUrl(appId),
+        available: true,
+        lastChange: null,
+        verified: true,
+      };
+    }
+    if (data.is_free) {
+      return {
+        store: "steam",
+        storeName: "Steam",
+        dealId: null,
+        storeGameId: appId,
+        currentPrice: { amount: 0, currency },
+        originalPrice: { amount: 0, currency },
+        discountPercent: 0,
+        url: steamStoreUrl(appId),
+        available: true,
+        lastChange: null,
+        verified: true,
+      };
+    }
+    return null;
+  });
 }
 
 async function fetchSteamReviews(appId: string) {

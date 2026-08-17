@@ -1,7 +1,7 @@
 import "server-only";
 
 import { CHEAPSHARK_SORT, GOG_STORE_ID, RECENT_RELEASE_MS, STEAM_STORE_ID } from "../constants";
-import { discountPercent, normalizeTitle, unixToIso, yearFromIso } from "../format";
+import { normalizeTitle, unixToIso, yearFromIso } from "../format";
 import { settled } from "../http";
 import type {
   CurrencyCode,
@@ -11,7 +11,6 @@ import type {
   GameDetails,
   PriceHistory,
   SearchResult,
-  SourceStatus,
   StoreFilter,
   StoreOffer,
 } from "../types";
@@ -29,27 +28,11 @@ import {
 import { convertMoney, getUsdRates } from "../providers/fx";
 import { fetchGogByTitleSafe, searchGogCatalog } from "../providers/gog";
 import { fetchSteamAppSafe } from "../providers/steam";
+import { pickBest, withBest } from "./helpers";
+import { hydrateOfficialPrices } from "./official";
 
 function emptySources(): DealListResult["sources"] {
   return { cheapshark: "ok", steam: "skipped", gog: "skipped", fx: "skipped" };
-}
-
-function pickBest(offers: StoreOffer[]): StoreOffer | null {
-  const available = offers.filter((offer) => offer.available);
-  if (!available.length) return null;
-  return available.reduce((best, offer) =>
-    offer.currentPrice.amount < best.currentPrice.amount ? offer : best,
-  );
-}
-
-function applyCurrency(offer: StoreOffer, currency: CurrencyCode, rates: Awaited<ReturnType<typeof getUsdRates>> | null) {
-  if (offer.currentPrice.currency === currency) return offer;
-  if (!rates) return offer;
-  return {
-    ...offer,
-    currentPrice: convertMoney(offer.currentPrice, currency, rates),
-    originalPrice: convertMoney(offer.originalPrice, currency, rates),
-  };
 }
 
 function fromCheapSharkDeal(deal: CheapSharkDeal): DealGame {
@@ -77,7 +60,7 @@ function fromCheapSharkDeal(deal: CheapSharkDeal): DealGame {
     cheapestEver: null,
     cheapestEverDate: null,
     offers,
-    bestOffer: pickBest(offers),
+    bestOffer: pickBest(offers, false),
     genres: [],
     playModes: [],
     isRecentlyReleased: releaseIso
@@ -117,7 +100,7 @@ function mergeGames(games: DealGame[]): DealGame[] {
       genres: [...new Set([...existing.genres, ...game.genres])],
       playModes: [...new Set([...existing.playModes, ...game.playModes])],
       offers,
-      bestOffer: pickBest(offers),
+      bestOffer: pickBest(offers, false),
     });
   }
   return [...map.values()];
@@ -144,21 +127,10 @@ function hydrateFromLookup(game: DealGame, lookup: CheapSharkGameLookup | undefi
         ? unixToIso(lookup.cheapestPriceEver.date)
         : game.cheapestEverDate,
       offers: lookupOffers,
-      bestOffer: pickBest(lookupOffers),
+      bestOffer: pickBest(lookupOffers, false),
     },
   ])[0];
   return merged;
-}
-
-function convertGame(game: DealGame, currency: CurrencyCode, rates: Awaited<ReturnType<typeof getUsdRates>> | null): DealGame {
-  if (currency === "USD" || !rates) return game;
-  const offers = game.offers.map((offer) => applyCurrency(offer, currency, rates));
-  return {
-    ...game,
-    cheapestEver: game.cheapestEver ? convertMoney(game.cheapestEver, currency, rates) : null,
-    offers,
-    bestOffer: pickBest(offers),
-  };
 }
 
 function storeIds(store: StoreFilter | undefined) {
@@ -240,81 +212,6 @@ async function attachLookups(games: DealGame[]): Promise<DealGame[]> {
   return games.map((game) => hydrateFromLookup(game, lookup.value[game.gameId]));
 }
 
-async function attachGogNative(games: DealGame[], currency: CurrencyCode, enabled: boolean) {
-  if (!enabled) return { games, status: "skipped" as SourceStatus };
-  const top = games.slice(0, 12);
-  const results = await Promise.all(
-    top.map(async (game) => {
-      const gog = await fetchGogByTitleSafe(game.title, currency);
-      return { game, gog };
-    }),
-  );
-  let status: SourceStatus = "ok";
-  const rest = games.slice(12);
-  const updated = results.map(({ game, gog }) => {
-    if (!gog.ok) {
-      status = "unavailable";
-      return game;
-    }
-    if (!gog.value) return game;
-    const native = gog.value.offer;
-    const offers = game.offers.filter((offer) => offer.store !== "gog");
-    if (native) {
-      offers.push({
-        ...native,
-        dealId: game.offers.find((offer) => offer.store === "gog")?.dealId ?? native.dealId,
-        url: native.url,
-      });
-    }
-    return {
-      ...game,
-      genres: [...new Set([...game.genres, ...gog.value.genres])],
-      playModes: [...new Set([...game.playModes, ...gog.value.playModes])],
-      cover: game.steamAppId ? game.cover : gog.value.cover || game.cover,
-      offers,
-      bestOffer: pickBest(offers),
-    };
-  });
-  return { games: [...updated, ...rest], status };
-}
-
-async function attachSteamNative(games: DealGame[], currency: CurrencyCode, enabled: boolean) {
-  if (!enabled) return { games, status: "skipped" as SourceStatus };
-  const top = games.slice(0, 8);
-  const results = await Promise.all(
-    top.map(async (game) => ({
-      game,
-      steam: await fetchSteamAppSafe(game.steamAppId, currency),
-    })),
-  );
-  let status: SourceStatus = "ok";
-  const rest = games.slice(8);
-  const updated = results.map(({ game, steam }) => {
-    if (!steam.ok) {
-      if (steam.error !== "missing") status = "unavailable";
-      return game;
-    }
-    if (!steam.value) return game;
-    const native = steam.value.offer;
-    const offers = game.offers.filter((offer) => offer.store !== "steam");
-    if (native) {
-      offers.push({
-        ...native,
-        dealId: game.offers.find((offer) => offer.store === "steam")?.dealId ?? native.dealId,
-      });
-    }
-    return {
-      ...game,
-      genres: [...new Set([...game.genres, ...steam.value.genres])],
-      playModes: [...new Set([...game.playModes, ...steam.value.playModes])],
-      cover: steam.value.header || game.cover,
-      offers,
-      bestOffer: pickBest(offers),
-    };
-  });
-  return { games: [...updated, ...rest], status };
-}
-
 export async function queryDeals(query: DealQuery = {}): Promise<DealListResult> {
   const currency = query.currency ?? "USD";
   const page = query.page ?? 0;
@@ -325,7 +222,6 @@ export async function queryDeals(query: DealQuery = {}): Promise<DealListResult>
 
   const fx = await settled(getUsdRates());
   sources.fx = fx.ok ? "ok" : "unavailable";
-  const rates = fx.ok ? fx.value : null;
 
   const cheapshark = await settled(
     fetchCheapSharkDeals({
@@ -401,27 +297,20 @@ export async function queryDeals(query: DealQuery = {}): Promise<DealListResult>
     }
   }
 
-  const native = currency !== "USD";
-  if (native) {
-    const steam = await attachSteamNative(games, currency, query.store !== "gog");
-    games = steam.games;
-    sources.steam = steam.status;
-    const gog = await attachGogNative(games, currency, query.store !== "steam");
-    games = gog.games;
-    if (sources.gog === "skipped") sources.gog = gog.status;
+  const shouldHydrate = query.hydrate !== false;
+  if (shouldHydrate) {
+    const live = await hydrateOfficialPrices(games, currency, {
+      steam: query.store !== "gog",
+      gog: query.store !== "steam",
+    });
+    games = live.games.filter((game) => game.offers.some((offer) => offer.verified));
+    sources.steam = live.steam;
+    sources.gog = live.gog;
   }
-  games = games.map((game) => convertGame(game, currency, rates));
 
   games = sortGames(filterGames(games, { ...query, sort }), sort);
 
   const noticeParts: string[] = [];
-  if (currency !== "USD" && sources.steam !== "ok" && sources.gog !== "ok") {
-    if (rates) {
-      noticeParts.push(
-        `${currency} amounts on this list are converted from USD using ECB rates and may differ from live storefront prices.`,
-      );
-    }
-  }
   if (query.genre && games.length === 0) {
     noticeParts.push("Genre filters use available store metadata. Try another genre or clear the filter.");
   }
@@ -442,7 +331,6 @@ export async function searchGames(q: string, currency: CurrencyCode = "USD"): Pr
   const sources = emptySources();
   const fx = await settled(getUsdRates());
   sources.fx = fx.ok ? "ok" : "unavailable";
-  const rates = fx.ok ? fx.value : null;
 
   const search = await settled(searchCheapSharkGames(q, 12));
   if (!search.ok) {
@@ -451,7 +339,7 @@ export async function searchGames(q: string, currency: CurrencyCode = "USD"): Pr
   }
 
   const lookups = await settled(lookupCheapSharkGames(search.value.map((game) => game.gameID)));
-  const games = search.value.map((hit) => {
+  const discovered = search.value.map((hit) => {
     const lookup = lookups.ok ? lookups.value[hit.gameID] : undefined;
     const base: DealGame = {
       gameId: hit.gameID,
@@ -474,11 +362,15 @@ export async function searchGames(q: string, currency: CurrencyCode = "USD"): Pr
       playModes: [],
       isRecentlyReleased: false,
     };
-    return convertGame(hydrateFromLookup(base, lookup), currency, rates);
-  }).filter((game) => game.offers.length > 0);
+    return hydrateFromLookup(base, lookup);
+  });
+
+  const live = await hydrateOfficialPrices(discovered, currency);
+  sources.steam = live.steam;
+  sources.gog = live.gog;
 
   return {
-    games,
+    games: live.games.filter((game) => game.offers.some((offer) => offer.verified)),
     query: q,
     currency,
     sources,
@@ -570,16 +462,10 @@ export async function getGameDetails(id: string, currency: CurrencyCode = "USD")
   const steam = await fetchSteamAppSafe(game.steamAppId, currency);
   const gog = await fetchGogByTitleSafe(game.title, currency);
 
+  const offers: StoreOffer[] = [];
   if (steam.ok && steam.value) {
     sources.steam = "ok";
-    const native = steam.value.offer;
-    const offers = game.offers.filter((offer) => offer.store !== "steam");
-    if (native) offers.push(native);
-    else if (currency !== "USD") {
-      game.offers
-        .filter((offer) => offer.store === "steam")
-        .forEach((offer) => offers.push(applyCurrency(offer, currency, rates)));
-    }
+    if (steam.value.offer) offers.push(steam.value.offer);
     game = {
       ...game,
       title: steam.value.name || game.title,
@@ -587,8 +473,6 @@ export async function getGameDetails(id: string, currency: CurrencyCode = "USD")
       genres: steam.value.genres,
       playModes: steam.value.playModes,
       releaseDate: steam.value.releaseDate || game.releaseDate,
-      offers,
-      bestOffer: pickBest(offers),
     };
   } else if (game.steamAppId) {
     sources.steam = steam.ok ? "skipped" : "unavailable";
@@ -596,36 +480,26 @@ export async function getGameDetails(id: string, currency: CurrencyCode = "USD")
 
   if (gog.ok && gog.value) {
     sources.gog = "ok";
-    const native = gog.value.offer;
-    const offers = game.offers.filter((offer) => offer.store !== "gog");
-    if (native) offers.push(native);
-    else if (currency !== "USD") {
-      game.offers
-        .filter((offer) => offer.store === "gog")
-        .forEach((offer) => offers.push(applyCurrency(offer, currency, rates)));
-    }
+    if (gog.value.offer) offers.push(gog.value.offer);
     game = {
       ...game,
       genres: [...new Set([...game.genres, ...gog.value.genres])],
       playModes: [...new Set([...game.playModes, ...gog.value.playModes])],
       cover: game.cover || gog.value.cover,
-      offers,
-      bestOffer: pickBest(offers),
     };
   } else {
     sources.gog = gog.ok ? "skipped" : "unavailable";
   }
 
-  if (currency !== "USD") {
-    game = {
-      ...game,
-      cheapestEver: game.cheapestEver && rates ? convertMoney(game.cheapestEver, currency, rates) : game.cheapestEver,
-      offers: game.offers.map((offer) =>
-        offer.currentPrice.currency === currency ? offer : applyCurrency(offer, currency, rates),
-      ),
-    };
-    game.bestOffer = pickBest(game.offers);
-  }
+  game = withBest({
+    ...game,
+    cheapestEver:
+      game.cheapestEver && rates && currency !== "USD"
+        ? convertMoney(game.cheapestEver, currency, rates)
+        : game.cheapestEver,
+    offers,
+    bestOffer: pickBest(offers),
+  });
 
   const steamDetails = steam.ok ? steam.value : null;
   const gogDetails = gog.ok ? gog.value : null;
@@ -668,5 +542,3 @@ export async function featuredComparison(currency: CurrencyCode = "USD") {
   if (!match) return null;
   return getGameDetails(match.gameId, currency);
 }
-
-export { discountPercent };
