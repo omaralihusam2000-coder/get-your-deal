@@ -19,6 +19,7 @@ export default async function HomePage() {
       <Hero />
       <div className="mx-auto max-w-7xl px-4 sm:px-6">
         <ErrorBanner sources={data.sources} notice={data.notice} />
+        <p className="pb-2 text-sm text-muted">Prices below are the live amounts on Steam and GOG.</p>
         <section className="py-6">
           <SectionHeader title="Today's Best Deals" href="/deals" eyebrow="Live right now" />
           <DealGrid games={data.best} />

@@ -129,6 +129,7 @@ function offerFromProduct(product: GogCatalogProduct, currency: CurrencyCode): S
     url,
     available: true,
     lastChange: null,
+    verified: true,
   };
 }
 
@@ -157,9 +158,8 @@ export async function fetchGogByTitle(title: string, currency: CurrencyCode): Pr
   return cached(`gog:title:${normalizeTitle(title)}:${currency}`, 30 * 60 * 1000, async () => {
     const products = await searchGogCatalog(title, currency, { limit: "8" });
     const exact = products.find((product) => normalizeTitle(product.title) === normalizeTitle(title));
-    const product = exact ?? products[0];
-    if (!product) return null;
-    return detailsFromCatalog(product, currency);
+    if (!exact) return null;
+    return detailsFromCatalog(exact, currency);
   });
 }
 

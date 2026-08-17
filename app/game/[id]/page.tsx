@@ -87,7 +87,8 @@ export default async function GamePage({ params }: { params: Promise<{ id: strin
           <ErrorBanner sources={game.sources} />
           <section>
             <h2 className="mb-4 text-2xl font-bold">Price comparison</h2>
-            <ComparisonTable offers={game.offers} bestStore={game.bestOffer?.store} />
+            <p className="mb-4 text-sm text-muted">These are the current prices on Steam and GOG, not third-party copies.</p>
+            <ComparisonTable offers={game.offers.filter((offer) => offer.verified)} bestStore={game.bestOffer?.store} />
           </section>
           <section>
             <h2 className="mb-4 text-2xl font-bold">Price history</h2>

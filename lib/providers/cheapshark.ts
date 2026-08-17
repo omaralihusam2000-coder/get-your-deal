@@ -113,6 +113,7 @@ export function offerFromCheapSharkDeal(
     url,
     available: true,
     lastChange: unixToIso(deal.lastChange),
+    verified: false,
   };
 }
 
@@ -142,6 +143,7 @@ export function offerFromLookupDeal(
     url,
     available: true,
     lastChange: null,
+    verified: false,
   };
 }
 

@@ -4,10 +4,12 @@ import { CoverImage } from "@/components/ui/CoverImage";
 import { StoreLogo } from "@/components/ui/StoreLogo";
 import { formatDiscount, formatMoney } from "@/lib/format";
 import { cn } from "@/lib/cn";
-import type { DealGame } from "@/lib/types";
+import type { DealGame, StoreOffer } from "@/lib/types";
 
 export function DealCard({ game }: { game: DealGame }) {
-  const best = game.bestOffer;
+  const steam = game.offers.find((offer) => offer.store === "steam" && offer.verified);
+  const gog = game.offers.find((offer) => offer.store === "gog" && offer.verified);
+  const best = game.bestOffer?.verified ? game.bestOffer : steam || gog || null;
   const discount = best ? Math.round(best.discountPercent) : 0;
   const original = best && best.originalPrice.amount > best.currentPrice.amount ? best.originalPrice : null;
 
@@ -38,13 +40,11 @@ export function DealCard({ game }: { game: DealGame }) {
             {best ? formatMoney(best.currentPrice) : "Unavailable"}
           </span>
         </div>
-        {best && (
-          <div className="flex items-center gap-2 text-deal">
-            <span className="h-2 w-2 rounded-full bg-deal" />
-            <StoreLogo store={best.store} />
-            <span className="text-xs font-bold">BEST PRICE</span>
-          </div>
-        )}
+        <div className="grid gap-1.5 text-sm">
+          <StorePriceRow offer={steam} best={best?.store === "steam"} />
+          <StorePriceRow offer={gog} best={best?.store === "gog"} />
+          {!steam && !gog && <p className="text-xs text-muted">Live Steam/GOG price unavailable</p>}
+        </div>
         <Link
           href={best?.url || `/game/${game.gameId}`}
           target={best?.url ? "_blank" : undefined}
@@ -57,5 +57,19 @@ export function DealCard({ game }: { game: DealGame }) {
         </Link>
       </div>
     </article>
+  );
+}
+
+function StorePriceRow({ offer, best }: { offer?: StoreOffer; best: boolean }) {
+  if (!offer) return null;
+  return (
+    <div className={cn("flex items-center justify-between gap-2", best ? "text-deal" : "text-muted")}>
+      <span className="inline-flex items-center gap-2">
+        {best && <span className="h-2 w-2 rounded-full bg-deal" />}
+        <StoreLogo store={offer.store} />
+        {best && <span className="text-[10px] font-bold uppercase">Best price</span>}
+      </span>
+      <span className="font-semibold text-foreground">{formatMoney(offer.currentPrice)}</span>
+    </div>
   );
 }

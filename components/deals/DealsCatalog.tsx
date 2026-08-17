@@ -40,6 +40,7 @@ export async function DealsCatalog({
         </Suspense>
       </div>
       <ErrorBanner sources={result.sources} notice={result.notice} />
+      <p className="mb-5 text-sm text-muted">Prices below are the live amounts on Steam and GOG.</p>
       <DealGrid games={result.games} />
     </div>
   );

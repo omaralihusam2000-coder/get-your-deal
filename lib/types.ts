@@ -36,6 +36,8 @@ export type StoreOffer = {
   url: string;
   available: boolean;
   lastChange: string | null;
+  /** True only when the amount came from Steam or GOG themselves. */
+  verified: boolean;
 };
 
 export type DealGame = {
@@ -127,6 +129,8 @@ export type DealQuery = {
   pageSize?: number;
   onSale?: boolean;
   currency?: CurrencyCode;
+  /** When false, skip Steam/GOG live price lookups (discovery only). */
+  hydrate?: boolean;
 };
 
 export type DealListResult = {
