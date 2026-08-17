@@ -466,7 +466,7 @@ export async function searchGames(q: string, currency: CurrencyCode = "USD"): Pr
       steamRatingCount: null,
       metacriticScore: null,
       dealRating: null,
-      cheapestEver: { amount: Number.parseFloat(hit.cheapest), currency: "USD" },
+      cheapestEver: null,
       cheapestEverDate: null,
       offers: [],
       bestOffer: null,
@@ -475,7 +475,7 @@ export async function searchGames(q: string, currency: CurrencyCode = "USD"): Pr
       isRecentlyReleased: false,
     };
     return convertGame(hydrateFromLookup(base, lookup), currency, rates);
-  });
+  }).filter((game) => game.offers.length > 0);
 
   return {
     games,
