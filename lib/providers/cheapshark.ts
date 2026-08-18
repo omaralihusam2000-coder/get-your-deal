@@ -3,6 +3,7 @@ import "server-only";
 import { GOG_STORE_ID, STEAM_STORE_ID, STORE_NAMES } from "../constants";
 import { discountPercent, parsePrice, unixToIso } from "../format";
 import { fetchJson, fetchText } from "../http";
+import { steamStoreUrl } from "../store-links";
 import type { CurrencyCode, Money, StoreOffer, StoreSlug } from "../types";
 
 const BASE =
@@ -69,13 +70,7 @@ export function steamArtwork(appId: string | null | undefined, kind: "header" | 
   return `https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/${appId}/${file}`;
 }
 
-export function cheapSharkRedirect(dealId: string) {
-  return `https://www.cheapshark.com/redirect?dealID=${encodeURIComponent(dealId)}`;
-}
-
-export function steamStoreUrl(appId: string) {
-  return `https://store.steampowered.com/app/${appId}/`;
-}
+export { steamStoreUrl };
 
 function usd(amount: number): Money {
   return { amount, currency: "USD" };
@@ -97,10 +92,7 @@ export function offerFromCheapSharkDeal(
   const original = parsePrice(deal.normalPrice);
   if (current === null || original === null) return null;
 
-  const url =
-    store === "steam" && deal.steamAppID
-      ? steamStoreUrl(deal.steamAppID)
-      : cheapSharkRedirect(deal.dealID);
+  const url = store === "steam" && deal.steamAppID ? steamStoreUrl(deal.steamAppID) : "";
 
   return {
     store,
@@ -127,10 +119,7 @@ export function offerFromLookupDeal(
   const current = parsePrice(deal.price);
   const original = parsePrice(deal.retailPrice);
   if (current === null || original === null) return null;
-  const url =
-    store === "steam" && steamAppId
-      ? steamStoreUrl(steamAppId)
-      : cheapSharkRedirect(deal.dealID);
+  const url = store === "steam" && steamAppId ? steamStoreUrl(steamAppId) : "";
 
   return {
     store,

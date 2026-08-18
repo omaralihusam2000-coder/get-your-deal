@@ -5,7 +5,7 @@ import { cached } from "../cache";
 import { discountPercent, stripHtml } from "../format";
 import { fetchJson, settled } from "../http";
 import type { CurrencyCode, Money, StoreOffer } from "../types";
-import { steamStoreUrl } from "./cheapshark";
+import { steamStoreUrl } from "../store-links";
 
 const BASE = process.env.STEAM_STORE_API_BASE ?? "https://store.steampowered.com/api";
 

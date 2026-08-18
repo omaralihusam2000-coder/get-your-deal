@@ -1,5 +1,5 @@
-import { ArrowRight } from "lucide-react";
 import { StoreLogo } from "@/components/ui/StoreLogo";
+import { StoreDealLink } from "@/components/deals/StoreDealLink";
 import { formatDiscount, formatMoney } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import type { StoreOffer } from "@/lib/types";
@@ -53,14 +53,10 @@ export function ComparisonTable({
                     {offer.discountPercent > 0 ? formatDiscount(offer.discountPercent) : "—"}
                   </td>
                   <td className="px-5 py-4 text-right">
-                    <a
-                      href={offer.url}
-                      target="_blank"
-                      rel="noreferrer"
+                    <StoreDealLink
+                      offer={offer}
                       className="inline-flex items-center gap-1 rounded-full bg-white px-4 py-2 text-sm font-bold text-black hover:bg-deal"
-                    >
-                      Get Deal <ArrowRight className="h-4 w-4" />
-                    </a>
+                    />
                   </td>
                 </tr>
               );
@@ -95,14 +91,10 @@ export function ComparisonTable({
               {offer.currentPrice.convertedFrom && (
                 <p className="mt-1 text-xs text-muted">Converted from {offer.currentPrice.convertedFrom}</p>
               )}
-              <a
-                href={offer.url}
-                target="_blank"
-                rel="noreferrer"
+              <StoreDealLink
+                offer={offer}
                 className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-white py-3 text-sm font-bold text-black"
-              >
-                Get Deal <ArrowRight className="h-4 w-4" />
-              </a>
+              />
             </div>
           );
         })}

@@ -4,6 +4,7 @@ import type { CurrencyCode, DealGame, SourceStatus, StoreOffer } from "../types"
 import { settled } from "../http";
 import { fetchSteamPrice } from "../providers/steam";
 import { fetchGogByTitleSafe } from "../providers/gog";
+import { isOfficialStoreUrl } from "../store-links";
 import { mapPool, pickBest, withBest } from "./helpers";
 
 export async function hydrateOfficialPrices(
@@ -24,7 +25,7 @@ export async function hydrateOfficialPrices(
     if (wantSteam && game.steamAppId) {
       const result = await settled(fetchSteamPrice(game.steamAppId, currency));
       if (!result.ok) steam = "unavailable";
-      else if (result.value) {
+      else if (result.value && isOfficialStoreUrl(result.value.url)) {
         offers.push({
           ...result.value,
           dealId: previousSteam?.dealId ?? result.value.dealId,
@@ -35,7 +36,7 @@ export async function hydrateOfficialPrices(
     if (wantGog) {
       const result = await fetchGogByTitleSafe(game.title, currency);
       if (!result.ok) gog = "unavailable";
-      else if (result.value?.offer) {
+      else if (result.value?.offer && isOfficialStoreUrl(result.value.offer.url)) {
         offers.push({
           ...result.value.offer,
           dealId: previousGog?.dealId ?? result.value.offer.dealId,

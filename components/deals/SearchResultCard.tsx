@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
 import { CoverImage } from "@/components/ui/CoverImage";
 import { StoreLogo } from "@/components/ui/StoreLogo";
+import { StoreDealLink } from "@/components/deals/StoreDealLink";
 import { formatDate, formatDiscount, formatMoney } from "@/lib/format";
 import type { DealGame, Money } from "@/lib/types";
 
@@ -63,14 +63,10 @@ export function SearchResultCard({ game }: { game: DealGame }) {
         </div>
         <div className="mt-4 flex flex-wrap gap-3">
           {best && (
-            <a
-              href={best.url}
-              target="_blank"
-              rel="noreferrer"
+            <StoreDealLink
+              offer={best}
               className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm font-bold text-black hover:bg-deal"
-            >
-              Get Deal <ArrowRight className="h-4 w-4" />
-            </a>
+            />
           )}
           <Link href={`/game/${game.gameId}`} className="inline-flex items-center gap-2 rounded-full border border-white/10 px-5 py-2.5 text-sm font-semibold">
             Compare prices
