@@ -5,6 +5,7 @@ import { cached } from "../cache";
 import { discountPercent, normalizeTitle, stripHtml } from "../format";
 import { fetchJson, settled } from "../http";
 import type { CurrencyCode, StoreOffer } from "../types";
+import { gogStoreUrl } from "../store-links";
 
 const CATALOG = process.env.GOG_CATALOG_API_BASE ?? "https://catalog.gog.com/v1/catalog";
 const PRODUCTS = process.env.GOG_PRODUCTS_API_BASE ?? "https://api.gog.com/products";
@@ -64,8 +65,8 @@ export type GogDetails = {
 };
 
 function gogUrl(slug: string | null, id?: string) {
-  if (slug) return `https://www.gog.com/en/game/${slug}`;
-  if (id) return `https://www.gog.com/en/game/${id}`;
+  if (slug) return gogStoreUrl(slug);
+  if (id) return gogStoreUrl(id);
   return null;
 }
 

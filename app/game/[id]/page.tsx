@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
-import { ArrowRight } from "lucide-react";
 import { ComparisonTable } from "@/components/deals/ComparisonTable";
 import { PriceChart } from "@/components/deals/PriceChart";
+import { StoreDealLink } from "@/components/deals/StoreDealLink";
 import { FavoriteButton } from "@/components/game/FavoriteButton";
 import { PriceAlertForm } from "@/components/game/PriceAlertForm";
 import { CoverImage } from "@/components/ui/CoverImage";
@@ -9,6 +9,7 @@ import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { formatDate, formatDiscount, formatMoney } from "@/lib/format";
 import { getGameDetails } from "@/lib/deals";
 import { getRequestCurrency } from "@/lib/currency-server";
+import { isOfficialStoreUrl } from "@/lib/store-links";
 import { TRUST_COPY } from "@/lib/constants";
 
 export const revalidate = 180;
@@ -68,14 +69,10 @@ export default async function GamePage({ params }: { params: Promise<{ id: strin
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
             {game.bestOffer && (
-              <a
-                href={game.bestOffer.url}
-                target="_blank"
-                rel="noreferrer"
+              <StoreDealLink
+                offer={game.bestOffer}
                 className="inline-flex items-center gap-2 rounded-full bg-deal px-6 py-3 text-sm font-bold text-black"
-              >
-                GET DEAL <ArrowRight className="h-4 w-4" />
-              </a>
+              />
             )}
             <FavoriteButton gameId={game.gameId} title={game.title} cover={game.cover} />
           </div>
@@ -145,13 +142,13 @@ export default async function GamePage({ params }: { params: Promise<{ id: strin
               />
             </dl>
             <div className="mt-5 grid gap-2">
-              {game.steamUrl && (
-                <a href={game.steamUrl} target="_blank" rel="noreferrer" className="rounded-xl bg-white/8 px-4 py-3 text-sm font-semibold hover:bg-white/12">
+              {game.steamUrl && isOfficialStoreUrl(game.steamUrl) && (
+                <a href={game.steamUrl} target="_blank" rel="noopener noreferrer" className="rounded-xl bg-white/8 px-4 py-3 text-sm font-semibold hover:bg-white/12">
                   Official Steam page →
                 </a>
               )}
-              {game.gogUrl && (
-                <a href={game.gogUrl} target="_blank" rel="noreferrer" className="rounded-xl bg-white/8 px-4 py-3 text-sm font-semibold hover:bg-white/12">
+              {game.gogUrl && isOfficialStoreUrl(game.gogUrl) && (
+                <a href={game.gogUrl} target="_blank" rel="noopener noreferrer" className="rounded-xl bg-white/8 px-4 py-3 text-sm font-semibold hover:bg-white/12">
                   Official GOG page →
                 </a>
               )}

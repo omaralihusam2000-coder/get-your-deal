@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
 import { CoverImage } from "@/components/ui/CoverImage";
 import { StoreLogo } from "@/components/ui/StoreLogo";
+import { StoreDealLink } from "@/components/deals/StoreDealLink";
 import { formatDiscount, formatMoney } from "@/lib/format";
+import { officialDealUrl } from "@/lib/store-links";
 import { cn } from "@/lib/cn";
 import type { DealGame, StoreOffer } from "@/lib/types";
 
@@ -31,7 +32,9 @@ export function DealCard({ game }: { game: DealGame }) {
         </div>
       </Link>
       <div className="space-y-3 p-4">
-        <h3 className="line-clamp-2 min-h-12 text-lg font-semibold leading-tight">{game.title}</h3>
+        <Link href={`/game/${game.gameId}`}>
+          <h3 className="line-clamp-2 min-h-12 text-lg font-semibold leading-tight hover:underline">{game.title}</h3>
+        </Link>
         <div className="flex items-end gap-2">
           {original && (
             <span className="text-sm text-muted line-through">{formatMoney(original)}</span>
@@ -45,16 +48,19 @@ export function DealCard({ game }: { game: DealGame }) {
           <StorePriceRow offer={gog} best={best?.store === "gog"} />
           {!steam && !gog && <p className="text-xs text-muted">Live Steam/GOG price unavailable</p>}
         </div>
-        <Link
-          href={best?.url || `/game/${game.gameId}`}
-          target={best?.url ? "_blank" : undefined}
-          rel={best?.url ? "noreferrer" : undefined}
-          className={cn(
-            "inline-flex w-full items-center justify-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-bold text-black transition hover:bg-deal",
-          )}
-        >
-          {best ? "View Deal" : "Compare"} <ArrowRight className="h-4 w-4" />
-        </Link>
+        {best ? (
+          <StoreDealLink
+            offer={best}
+            className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-bold text-black transition hover:bg-deal"
+          />
+        ) : (
+          <Link
+            href={`/game/${game.gameId}`}
+            className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-bold text-black"
+          >
+            Compare
+          </Link>
+        )}
       </div>
     </article>
   );
@@ -62,14 +68,30 @@ export function DealCard({ game }: { game: DealGame }) {
 
 function StorePriceRow({ offer, best }: { offer?: StoreOffer; best: boolean }) {
   if (!offer) return null;
-  return (
-    <div className={cn("flex items-center justify-between gap-2", best ? "text-deal" : "text-muted")}>
+  const href = officialDealUrl(offer);
+  const content = (
+    <>
       <span className="inline-flex items-center gap-2">
         {best && <span className="h-2 w-2 rounded-full bg-deal" />}
         <StoreLogo store={offer.store} />
         {best && <span className="text-[10px] font-bold uppercase">Best price</span>}
       </span>
       <span className="font-semibold text-foreground">{formatMoney(offer.currentPrice)}</span>
-    </div>
+    </>
+  );
+
+  if (!href) {
+    return <div className={cn("flex items-center justify-between gap-2", best ? "text-deal" : "text-muted")}>{content}</div>;
+  }
+
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={cn("flex items-center justify-between gap-2 rounded-lg px-1 py-0.5 hover:bg-white/5", best ? "text-deal" : "text-muted")}
+    >
+      {content}
+    </a>
   );
 }
